@@ -42,9 +42,7 @@ e.g. the folder layout will look as such:
             - ...
             - eal.py
 
-3. Run the python script using:
-
-``python eal.py``
+3. Run the python script using: ``python eal.py``
 
 The script will then run you through the process of localising your addon. Afterwards, EAL will create a new directory, and some new files inside the addon's lua folder:
 
