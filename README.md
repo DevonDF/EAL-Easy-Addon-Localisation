@@ -23,17 +23,22 @@ EAL requires Python 3
 
 ## Localising your addon
 
-1. You must first mark the strings within your addon that you want to be translatable. In order to do this, simply place a single % before any string in any of the lua files in your addon. For example, if you had the code:
+(1) You must first mark the strings within your addon that you want to be translatable. In order to do this, simply place a single % before any string in any of the lua files in your addon. For example, if you had the code:
 
 ``local my_variable = "Hello, World!"``
 
-simply prepend a % to make this translatable:
+simply prepend a % to mark this as translatable:
 
 ``local my_variable = "%Hello, World!"``
 
 This also works for every method of creating a string in lua, including the speechmarks (""), quotation marks ('') and double brackets ([[]])
 
-2. Place eal.py into the root of your addon folder,
+You can also leave comments to the translators which will be shown in the translation file. To do so, simply type your comment between the {} after the %, e.g.
+
+``local my_variable = "%{Comment goes here}Hello, World!"``
+
+
+(2) Place eal.py into the root of your addon folder,
 e.g. the folder layout will look as such:
 
         - addon_name
@@ -42,7 +47,7 @@ e.g. the folder layout will look as such:
             - ...
             - eal.py
 
-3. Run the python script using: ``python eal.py``
+(3) Run the python script using: ``python eal.py``
 
 The script will then run you through the process of localising your addon. Afterwards, EAL will create a new directory, and some new files inside the addon's lua folder:
 
@@ -56,9 +61,9 @@ The script will then run you through the process of localising your addon. After
 
 In order to now provide translations, simply give the relevant lua files inside langs/ to neccessary translators. EAL will load these language files upon startup of your addon automatically.
 
-4. Add functionality to your addon to change the language dynamically. Simply change the constant variable ``EAL.language`` to any given language code to dynamically change the language on either server or client.
+(4) Add functionality to your addon to change the language dynamically. Simply change the constant variable ``EAL.language`` to any given language code to dynamically change the language on either server or client.
 
-5. Direct users of your addon to eal.lua under the eal_addon_name folder in order to change their default language for the server. You may of course simply copy and paste this config over into your own configuration file.
+(5) Direct users of your addon to eal.lua under the eal_addon_name folder in order to change their default language for the server. You may of course simply copy and paste this config over into your own configuration file.
 
 
 ## Adding new translatable strings

@@ -30,6 +30,87 @@ PATH = pathlib.Path(__file__)
 ADDON_PATH = None
 ADDON_NAME = ""
 
+class TranslatableString():
+    """
+        Represents a translatable string
+    """
+
+    def __init__(self, raw_string):
+        """
+            Create a TranslatableString from a raw string
+                Structure of a translatable string should be %{comment}string
+        """
+        meta = re.search(r'%({[^"]*})?', raw_string).group(0)
+        self.string = raw_string.replace(meta, "")
+        comment = re.search(r'(?<={)[^"\']*(?=})', meta)
+        self.comment = comment.group(0) if comment else None
+        self.translation = self.string
+
+class TranslatableStringManager():
+    """
+        The manager handles collecting translatable strings such that
+            repeats are removed, as well as providing utility functions for use
+    """
+
+    def __init__(self):
+        self.translatable_strings = []
+        self._strings = {}
+    
+    def add_string(self, trans_string):
+        """
+            Add a translatable string
+
+            @params - TranslatableString trans_string - String to add
+
+            @returns - Boolean - Whether added or not
+        """
+        if (trans_string.string in self._strings.keys()):
+            index = self._strings[trans_string.string]
+            original = self.translatable_strings[index]
+            # If this one has a comment attached, but the currently stored doesn't, copy the comment over
+            if (original.comment == None and trans_string.comment != None):
+                original.comment = trans_string.comment
+            return False
+        
+        self.translatable_strings.append(trans_string)
+        self._strings[trans_string.string] = len(self.translatable_strings) - 1
+        return True
+    
+    def has_string(self, string):
+        """
+            Returns whether a given string has already been registered
+        """
+        return string in self._strings.keys()
+    
+    def remove_string(self, string):
+        """
+            Remove a translatable string
+        """
+        if (self.has_string(string)):
+            index = self._strings[string]
+            self.translatable_strings.pop(index)
+            del self._strings[string]
+
+
+    def get_translation_file_code(self):
+        """
+            Get the code for the translations of all held strings
+        """
+
+        code = ""
+
+        for trans_string in self.translatable_strings:
+            code += f"\t[\"{trans_string.string}\"] = \"{trans_string.translation}\","
+            if (trans_string.comment != None):
+                code += f" // {trans_string.comment}"
+            code += "\n"
+        
+        return code
+        
+    def __len__(self):
+        return len(self.translatable_strings)
+
+
 def generate_lua_comment(extra=""):
     """
         Generate a standard LUA comment with a given extra string
@@ -47,8 +128,7 @@ def get_translatable_strings():
 
         By default, this is all strings in .lua files that begin with %
 
-        @returns - Dict - Dict of strings marked for translation, keys are
-            raw strings, and values are translation values (default to the string again)
+        @returns - TranslatableStringManager - New Manager that holds all found translatable strings
     """
 
     def _scan_file(path):
@@ -61,21 +141,22 @@ def get_translatable_strings():
             for line in f.readlines():
                 strings = re.findall(r'"%[^"]+"', line) + re.findall(r'[[%[^"]+]]', line) + re.findall(r'\'%[^"]+\'', line)
                 for string in strings:
-                    raw_string = string[3:-2] if string.startswith("[[") else string[2:-1]
-                    line = line.replace(string, f"EAL.translations[\"{ADDON_NAME}\"][EAL.language][\"{raw_string}\"]")
-                    translatable_strings[raw_string] = raw_string
+                    raw_string = string[2:-2] if string.startswith("[[") else string[1:-1]
+                    trans_string = TranslatableString(raw_string)
+                    line = line.replace(string, f"EAL.translations[\"{ADDON_NAME}\"][EAL.language][\"{trans_string.string}\"]")
+                    translatable_string_manager.add_string(trans_string)
                 data += line
 
         with open(path, "w") as f:
             f.write(data)
 
     # We are using a dict so we have added benefit of auto-merging any same strings together
-    translatable_strings = {}
+    translatable_string_manager = TranslatableStringManager()
     
     for lua_file in ADDON_PATH.glob('**/*.lua'):
         _scan_file(lua_file)
     
-    return translatable_strings
+    return translatable_string_manager
 
 def write_translation_file(lang_dir, lang, translatable_strings):
     """
@@ -86,10 +167,11 @@ def write_translation_file(lang_dir, lang, translatable_strings):
         
         @params - pathlib.Path - Directory to place files
         @params - String - Language to write
-        @params - Dict - Dict of translatable strings to add
+        @params - TranslatableStringManager translatable_strings - Manager for strings to add
     """
 
     file_name = lang_dir.joinpath(f"{lang}.lua")
+    found_declarations = []
     if (file_name.exists()):
         with open(file_name, "r") as f:
             for line in f.readlines():
@@ -97,22 +179,18 @@ def write_translation_file(lang_dir, lang, translatable_strings):
                     # This line contains a translation
                     declaration = line.split("=")
                     if (len(declaration) != 2):
-                        logging.critical(f"{file_name.name} contains incorrect code.. please check before rerunning EAL, or delete this file " + 
-                            "to have it recreated")
-                        exit()
+                        continue
                     normal_string = re.search(r'(?<=\[")[^"]*(?="\])', declaration[0]).group(0)
-                    trans_string = re.search(r'(?<=")[^"]*(?=")', declaration[1]).group(0)
-                    translatable_strings[normal_string] = trans_string
+                    translatable_strings.remove_string(normal_string) # Remove as we already have this string
+                    found_declarations.append(line)
+                    
 
     with open(file_name, "w") as f:
             template = generate_lua_comment("Edit the right-hand side to provide translation to the left-hand side")
             template += f"EAL.translations[\"{ADDON_NAME}\"][\"{lang}\"] = {{\n"
-
-            for string, translation in translatable_strings.items():
-                template += f"\t[\"{string}\"] = \"{translation}\",\n"
-
+            template += "".join(found_declarations)
+            template += translatable_strings.get_translation_file_code()
             template += "}"
-
             f.write(template)
 
 def inject_eal_load(path):
@@ -159,13 +237,13 @@ def main():
         return
 
     # Get all translatable strings in lua files
-    translatable_strings = get_translatable_strings()
+    translatable_string_manager = get_translatable_strings()
 
-    if (len(translatable_strings) == 0):
+    if (len(translatable_string_manager) == 0):
         logging.critical("Found no translatable strings in addon.. exiting")
         return
 
-    logging.info(f"Found {len(translatable_strings)} translatable strings")
+    logging.info(f"Found {len(translatable_string_manager)} translatable strings")
 
     # Create our template directory
     lang_dir = ADDON_PATH.joinpath("lua", "eal_" + ADDON_NAME, "langs")
@@ -173,7 +251,7 @@ def main():
 
     # Create our templates
     for lang in LANGUAGES:
-        write_translation_file(lang_dir, lang, translatable_strings)
+        write_translation_file(lang_dir, lang, translatable_string_manager)
     
     # Create our loader and config
     loader_config_dir = ADDON_PATH.joinpath("lua", "eal_" + ADDON_NAME)
