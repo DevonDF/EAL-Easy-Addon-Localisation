@@ -47,7 +47,8 @@ def get_translatable_strings():
 
         By default, this is all strings in .lua files that begin with %
 
-        @returns - List - List of strings marked for translation
+        @returns - Dict - Dict of strings marked for translation, keys are
+            raw strings, and values are translation values (default to the string again)
     """
 
     def _scan_file(path):
@@ -62,14 +63,14 @@ def get_translatable_strings():
                 for string in strings:
                     raw_string = string[3:-2] if string.startswith("[[") else string[2:-1]
                     line = line.replace(string, f"EAL.translations[\"{ADDON_NAME}\"][EAL.language][\"{raw_string}\"]")
-                    translatable_strings.append(raw_string)
+                    translatable_strings[raw_string] = raw_string
                 data += line
 
         with open(path, "w") as f:
             f.write(data)
 
-
-    translatable_strings = []
+    # We are using a dict so we have added benefit of auto-merging any same strings together
+    translatable_strings = {}
     
     for lua_file in ADDON_PATH.glob('**/*.lua'):
         _scan_file(lua_file)
@@ -85,12 +86,8 @@ def write_translation_file(lang_dir, lang, translatable_strings):
         
         @params - pathlib.Path - Directory to place files
         @params - String - Language to write
-        @params - List - List of translatable strings to add
+        @params - Dict - Dict of translatable strings to add
     """
-
-    # We are converting to a dict so we can add any pre-translated strings in here
-    # Also, we have added benefit of auto-merging any same strings
-    translatable_strings = {string:"" for string in translatable_strings}
 
     file_name = lang_dir.joinpath(f"{lang}.lua")
     if (file_name.exists()):
