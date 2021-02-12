@@ -23,11 +23,12 @@ warnings.simplefilter("ignore")
 logging.basicConfig(format="%(levelname)s: %(message)s", level=logging.INFO)
 
 VERSION = "v0.0.1"
-LANGUAGES = ["EN", "DE", "FR", "IT"]
+LANGUAGES = ["bg", "cs", "da", "de", "el", "en", "es", "et", "fi", "fr", "he", "hr", "hu", 
+            "it", "ja", "ko", "lt", "nl", "no", "pl", "pt-BR", "pt-PT", "ru", "sk", "sv-SE", "th",
+            "tr", "uk", "vi", "zh-CN", "zh-TW"] # List of supported Garry's Mod languages
 PATH = pathlib.Path(__file__)
 ADDON_PATH = None
 ADDON_NAME = ""
-CHANGE = True
 
 def generate_lua_comment(extra=""):
     """
@@ -64,9 +65,8 @@ def get_translatable_strings():
                     translatable_strings.append(raw_string)
                 data += line
 
-        if (CHANGE):
-            with open(path, "w") as f:
-                f.write(data)
+        with open(path, "w") as f:
+            f.write(data)
 
 
     translatable_strings = []
@@ -76,6 +76,47 @@ def get_translatable_strings():
     
     return translatable_strings
 
+def write_translation_file(lang_dir, lang, translatable_strings):
+    """
+        Write the translation file for the given language and strings in the given directory
+
+        Performs checks in order to facilitate re-running EAL multiple times, so we are overwriting
+            previous translations
+        
+        @params - pathlib.Path - Directory to place files
+        @params - String - Language to write
+        @params - List - List of translatable strings to add
+    """
+
+    # We are converting to a dict so we can add any pre-translated strings in here
+    # Also, we have added benefit of auto-merging any same strings
+    translatable_strings = {string:"" for string in translatable_strings}
+
+    file_name = lang_dir.joinpath(f"{lang}.lua")
+    if (file_name.exists()):
+        with open(file_name, "r") as f:
+            for line in f.readlines():
+                if (re.search(r'\s*\["[^"]*"\]\s*=\s*"[^"]*"', line)):
+                    # This line contains a translation
+                    declaration = line.split("=")
+                    if (len(declaration) != 2):
+                        logging.critical(f"{file_name.name} contains incorrect code.. please check before rerunning EAL, or delete this file " + 
+                            "to have it recreated")
+                        exit()
+                    normal_string = re.search(r'(?<=\[")[^"]*(?="\])', declaration[0]).group(0)
+                    trans_string = re.search(r'(?<=")[^"]*(?=")', declaration[1]).group(0)
+                    translatable_strings[normal_string] = trans_string
+
+    with open(file_name, "w") as f:
+            template = generate_lua_comment("Edit the right-hand side to provide translation to the left-hand side")
+            template += f"EAL.translations[\"{ADDON_NAME}\"][\"{lang}\"] = {{\n"
+
+            for string, translation in translatable_strings.items():
+                template += f"\t[\"{string}\"] = \"{translation}\",\n"
+
+            template += "}"
+
+            f.write(template)
 
 def inject_eal_load(path):
     """
@@ -89,6 +130,9 @@ def inject_eal_load(path):
     eal_path = ADDON_PATH.joinpath("lua", "eal_" + ADDON_NAME)
 
     with open(path, "r+") as f:
+        if (f.readline().find(f"include(\"{eal_path.name}/eal.lua\")") != -1): 
+            return True
+        f.seek(0,0)
         data = f.read()
         f.seek(0,0)
         f.write(f"include(\"{eal_path.name}/eal.lua\")\r\n" + data)
@@ -116,16 +160,7 @@ def main():
 
     # Create our templates
     for lang in LANGUAGES:
-        with open(lang_dir.joinpath(f"{lang}.lua"), "w") as f:
-            template = generate_lua_comment("Edit the right-hand side to provide translation to the left-hand side")
-            template += f"EAL.translations[\"{ADDON_NAME}\"][\"{lang}\"] = {{\n"
-
-            for string in translatable_strings:
-                template += f"\t[\"{string}\"] = \"{string}\",\n"
-
-            template += "}"
-
-            f.write(template)
+        write_translation_file(lang_dir, lang, translatable_strings)
     
     # Create our loader and config
     loader_config_dir = ADDON_PATH.joinpath("lua", "eal_" + ADDON_NAME)
