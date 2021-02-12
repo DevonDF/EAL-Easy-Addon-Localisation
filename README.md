@@ -56,7 +56,7 @@ The script will then run you through the process of localising your addon. After
 
 In order to now provide translations, simply give the relevant lua files inside langs/ to neccessary translators. EAL will load these language files upon startup of your addon automatically.
 
-4. Add functionality to your addon to change the language dynamically. Simply change the constant variable ``EAL.language`` to any given language to dynamically change the language on either server or client.
+4. Add functionality to your addon to change the language dynamically. Simply change the constant variable ``EAL.language`` to any given language code to dynamically change the language on either server or client.
 
 5. Direct users of your addon to eal.lua under the eal_addon_name folder in order to change their default language for the server. You may of course simply copy and paste this config over into your own configuration file.
 
