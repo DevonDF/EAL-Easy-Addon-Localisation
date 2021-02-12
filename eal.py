@@ -144,13 +144,29 @@ def main():
     """
         Script execution starts here
     """
+    global ADDON_PATH, ADDON_NAME
+
+    logging.info("Loading EAL version " + VERSION)
+    if (not PATH.parent.joinpath("lua").exists()):
+        logging.critical("Error; Please run eal.py from the root directory of the addon to translate")
+        return
+    else:
+        ADDON_PATH = PATH.parent
+        ADDON_NAME = ADDON_PATH.name
+        logging.info("Registered addon name as " + ADDON_NAME)
+    
+    logging.warning("It is recommended to backup your addon before running EAL! Running EAL on your addons could possibly lead to"
+                + " loss of work or functionality. Use at your own risk.")
+    
+    if (input("Do you want to continue at your own risk? (y/n)\n").lower() not in ["y", "yes"]):
+        return
 
     # Get all translatable strings in lua files
     translatable_strings = get_translatable_strings()
 
     if (len(translatable_strings) == 0):
         logging.critical("Found no translatable strings in addon.. exiting")
-        exit()
+        return
 
     logging.info(f"Found {len(translatable_strings)} translatable strings")
 
@@ -209,29 +225,14 @@ def main():
         logging.critical("Error; Unable to inject into autorun file.. this may be because no such file exists or " +
                         "something bad happened... Copy the following code into an autorun file on BOTH server and client realm (or shared):")
         logging.critical(f"include(\"{loader_config_dir.name}/eal.lua\")")
-        exit()
+        return
     else:
         logging.info("Injected successfully...")
         logging.info("EAL complete!")
-        exit()
+        return
 
 
 
 if __name__ == "__main__":
-    logging.info("Loading EAL version " + VERSION)
-    if (PATH.parent.parent.name != "addons"):
-        logging.critical("Error; Please run eal.py from the root directory of the addon to translate")
-        exit()
-    else:
-        ADDON_PATH = PATH.parent
-        ADDON_NAME = ADDON_PATH.name
-        logging.info("Registered addon name as " + ADDON_NAME)
-    
-    logging.warning("It is recommended to backup your addon before running EAL! Running EAL on your addons could possibly lead to"
-                + " loss of work or functionality. Use at your own risk.")
-    
-    if (input("Do you want to continue at your own risk? (y/n)\n").lower() in ["y", "yes"]):
-        main()
-    else:
-        exit()
+    main()
     
