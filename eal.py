@@ -22,7 +22,7 @@ import sys
 warnings.simplefilter("ignore")
 logging.basicConfig(format="%(levelname)s: %(message)s", level=logging.INFO)
 
-VERSION = "v0.0.1"
+VERSION = "v0.0.2"
 LANGUAGES = ["bg", "cs", "da", "de", "el", "en", "es", "et", "fi", "fr", "he", "hr", "hu", 
             "it", "ja", "ko", "lt", "nl", "no", "pl", "pt-BR", "pt-PT", "ru", "sk", "sv-SE", "th",
             "tr", "uk", "vi", "zh-CN", "zh-TW"] # List of supported Garry's Mod languages
